@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TeleChat - Aplicativo de Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            height: 90vh;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            overflow: hidden;
+        }
+
+        .login-screen {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #128C7E;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .login-screen h1 {
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+        }
+
+        .login-screen p {
+            margin-bottom: 30px;
+            font-size: 1.2rem;
+        }
+
+        .login-form {
+            width: 100%;
+            max-width: 400px;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            color: #333;
+        }
+
+        .login-form h2 {
+            margin-bottom: 20px;
+            color: #128C7E;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #128C7E;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #0e6b5e;
+        }
+
+        .sidebar {
+            width: 30%;
+            height: 100%;
+            background-color: #f5f5f5;
+            border-right: 1px solid #ddd;
+            display: none;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background-color: #128C7E;
+            color: white;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+
+        .user-info img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+            background-color: #ddd;
+        }
+
+        .sidebar-options {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .add-contact {
+            width: 100%;
+            padding: 10px;
+            background-color: #128C7E;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .contacts {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .contact {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .contact:hover {
+            background-color: #eee;
+        }
+
+        .contact img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-right: 15px;
+            background-color: #ddd;
+        }
+
+        .contact-info h3 {
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+
+        .contact-info p {
+            font-size: 0.8rem;
+            color: #777;
+        }
+
+        .chat {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .chat-header img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 15px;
+            background-color: #ddd;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: #e5ded8;
+        }
+
+        .message {
+            max-width: 65%;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 7px;
+            position: relative;
+            clear: both;
+        }
+
+        .message-received {
+            background-color: white;
+            float: left;
+        }
+
+        .message-sent {
+            background-color: #dcf8c6;
+            float: right;
+        }
+
+        .message-time {
+            font-size: 0.7rem;
+            color: #777;
+            text-align: right;
+            margin-top: 5px;
+        }
+
+        .chat-input {
+            display: flex;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-top: 1px solid #ddd;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            margin-right: 10px;
+            font-size: 1rem;
+        }
+
+        .chat-input button {
+            padding: 12px 20px;
+            background-color: #128C7E;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #128C7E;
+        }
+
+        .close {
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* Responsive styles */
+        @media (max-width: 768px) {
+            .container {
+                height: 100vh;
+                border-radius: 0;
+            }
+
+            .sidebar {
+                width: 100%;
+            }
+
+            .chat {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Tela de Login e Cadastro -->
+    <div class="container">
+        <div class="login-screen" id="login-screen">
+            <h1>TeleChat</h1>
+            <p>Conecte-se com seus amigos através do número de telefone</p>
+            <div class="login-form">
+                <h2>Criar conta / Entrar</h2>
+                <div class="form-group">
+                    <label for="phone">Número de telefone</label>
+                    <input type="tel" id="phone" placeholder="Digite seu número de telefone" required>
+                </div>
+                <div class="form-group">
+                    <label for="name">Seu nome</label>
+                    <input type="text" id="name" placeholder="Digite seu nome" required>
+                </div>
+                <button class="btn" id="login-btn">Continuar</button>
+            </div>
+        </div>
+
+        <!-- Interface principal do chat após o login -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="user-info">
+                    <img src="https://via.placeholder.com/40" alt="Perfil">
+                    <h3 id="user-name">Usuário</h3>
+                </div>
+            </div>
+            <div class="sidebar-options">
+                <button class="add-contact" id="add-contact-btn">Adicionar Contato</button>
+            </div>
+            <div class="contacts" id="contacts-list">
+                <!-- Contatos serão adicionados dinamicamente aqui -->
+            </div>
+        </div>
+
+        <div class="chat" id="chat-area">
+            <div class="chat-header">
+                <img src="https://via.placeholder.com/40" alt="Contato">
+                <h3 id="chat-contact-name">Nome do Contato</h3>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <!-- Mensagens serão adicionadas dinamicamente aqui -->
+            </div>
+            <div class="chat-input">
+                <input type="text" id="message-input" placeholder="Digite uma mensagem...">
+                <button id="send-message">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para adicionar contato -->
+    <div class="modal" id="add-contact-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Adicionar Contato</h2>
+                <span class="close" id="close-modal">&times;</span>
+            </div>
+            <div class="form-group">
+                <label for="contact-phone">Número de telefone</label>
+                <input type="tel" id="contact-phone" placeholder="Digite o número de telefone do contato" required>
+            </div>
+            <div class="form-group">
+                <label for="contact-name">Nome do contato</label>
+                <input type="text" id="contact-name" placeholder="Digite o nome do contato" required>
+            </div>
+            <button class="btn" id="save-contact">Salvar contato</button>
+        </div>
+    </div>
+
+    <script>
+        // Dados do usuário atual
+        let currentUser = {
+            phone: '',
+            name: '',
+            contacts: []
+        };
+
+        // Contatos (simulação de banco de dados)
+        let users = [];
+
+        // Referências aos elementos do DOM
+        const loginScreen = document.getElementById('login-screen');
+        const sidebar = document.getElementById('sidebar');
+        const chatArea = document.getElementById('chat-area');
+        const loginBtn = document.getElementById('login-btn');
+        const addContactBtn = document.getElementById('add-contact-btn');
+        const contactsList = document.getElementById('contacts-list');
+        const userName = document.getElementById('user-name');
+        const chatContactName = document.getElementById('chat-contact-name');
+        const chatMessages = document.getElementById('chat-messages');
+        const messageInput = document.getElementById('message-input');
+        const sendMessageBtn = document.getElementById('send-message');
+        const addContactModal = document.getElementById('add-contact-modal');
+        const closeModal = document.getElementById('close-modal');
+        const saveContactBtn = document.getElementById('save-contact');
+
+        // Verifica se há dados salvos no localStorage
+        function checkLocalStorage() {
+            const savedUsers = localStorage.getItem('telechat-users');
+            const currentUserData = localStorage.getItem('telechat-current-user');
+            
+            if (savedUsers) {
+                users = JSON.parse(savedUsers);
+            }
+            
+            if (currentUserData) {
+                currentUser = JSON.parse(currentUserData);
+                loginToApp();
+            }
+        }
+
+        // Login/Cadastro
+        loginBtn.addEventListener('click', () => {
+            const phone = document.getElementById('phone').value.trim();
+            const name = document.getElementById('name').value.trim();
+            
+            if (!phone || !name) {
+                alert('Por favor, preencha todos os campos!');
+                return;
+            }
+            
+            // Verifica se o usuário já existe
+            const existingUser = users.find(user => user.phone === phone);
+            
+            if (existingUser) {
+                // Login
+                currentUser = existingUser;
+            } else {
+                // Cadastro
+                currentUser = {
+                    phone,
+                    name,
+                    contacts: []
+                };
+                users.push(currentUser);
+            }
+            
+            // Salva no localStorage
+            localStorage.setItem('telechat-users', JSON.stringify(users));
+            localStorage.setItem('telechat-current-user', JSON.stringify(currentUser));
+            
+            loginToApp();
+        });
+
+        // Função para entrar no app
+        function loginToApp() {
+            loginScreen.style.display = 'none';
+            sidebar.style.display = 'flex';
+            userName.textContent = currentUser.name;
+            
+            // Carrega a lista de contatos
+            loadContacts();
+        }
+
+        // Carrega a lista de contatos
+        function loadContacts() {
+            contactsList.innerHTML = '';
+            
+            currentUser.contacts.forEach(contact => {
+                const contactElement = document.createElement('div');
+                contactElement.className = 'contact';
+                contactElement.innerHTML = `
+                    <img src="https://via.placeholder.com/50" alt="${contact.name}">
+                    <div class="contact-info">
+                        <h3>${contact.name}</h3>
+                        <p>${contact.phone}</p>
+                    </div>
+                `;
+                
+                contactElement.addEventListener('click', () => {
+                    openChat(contact);
+                });
+                
+                contactsList.appendChild(contactElement);
+            });
+        }
+
+        // Abre o chat com um contato
+        function openChat(contact) {
+            chatArea.style.display = 'flex';
+            chatContactName.textContent = contact.name;
+            chatMessages.innerHTML = '';
+            
+            // Simula algumas mensagens (em uma aplicação real, seriam carregadas de um banco de dados)
+            const messages = [
+                { sender: 'them', text: 'Olá, tudo bem?', time: '10:30' },
+                { sender: 'me', text: 'Tudo ótimo! E com você?', time: '10:32' },
+                { sender: 'them', text: 'Também estou bem! Vamos marcar algo para este fim de semana?', time: '10:35' }
+            ];
+            
+            messages.forEach(message => {
+                addMessageToChat(message);
+            });
+            
+            // Salva o contato atual para saber para quem enviar a mensagem
+            chatArea.dataset.contactPhone = contact.phone;
+            
+            // Em telas pequenas, esconde a sidebar
+            if (window.innerWidth <= 768) {
+                sidebar.style.display = 'none';
+            }
+        }
+
+        // Adiciona uma mensagem ao chat
+        function addMessageToChat(message) {
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${message.sender === 'me' ? 'message-sent' : 'message-received'}`;
+            messageElement.innerHTML = `
+                <p>${message.text}</p>
+                <div class="message-time">${message.time}</div>
+            `;
+            
+            chatMessages.appendChild(messageElement);
+            
+            // Rola para a última mensagem
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Enviar mensagem
+        sendMessageBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            
+            if (!text) return;
+            
+            const now = new Date();
+            const time = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
+            
+            addMessageToChat({
+                sender: 'me',
+                text,
+                time
+            });
+            
+            messageInput.value = '';
+            
+            // Simula uma resposta após 1 segundo (em uma aplicação real, seria enviada a um servidor)
+            setTimeout(() => {
+                addMessageToChat({
+                    sender: 'them',
+                    text: 'Recebi sua mensagem!',
+                    time: `${now.getHours()}:${(now.getMinutes() + 1).toString().padStart(2, '0')}`
+                });
+            }, 1000);
+        }
+
+        // Modal para adicionar contato
+        addContactBtn.addEventListener('click', () => {
+            addContactModal.style.display = 'flex';
+        });
+
+        closeModal.addEventListener('click', () => {
+            addContactModal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === addContactModal) {
+                addContactModal.style.display = 'none';
+            }
+        });
+
+        // Salvar novo contato
+        saveContactBtn.addEventListener('click', () => {
+            const contactPhone = document.getElementById('contact-phone').value.trim();
+            const contactName = document.getElementById('contact-name').value.trim();
+            
+            if (!contactPhone || !contactName) {
+                alert('Por favor, preencha todos os campos!');
+                return;
+            }
+            
+            // Verifica se o contato já existe
+            const existingContact = currentUser.contacts.find(contact => contact.phone === contactPhone);
+            
+            if (existingContact) {
+                alert('Este contato já existe na sua lista!');
+                return;
+            }
+            
+            // Adiciona o novo contato
+            const newContact = {
+                phone: contactPhone,
+                name: contactName
+            };
+            
+            currentUser.contacts.push(newContact);
+            
+            // Atualiza os dados no localStorage
+            localStorage.setItem('telechat-current-user', JSON.stringify(currentUser));
+            
+            // Atualiza também no array de usuários
+            const userIndex = users.findIndex(user => user.phone === currentUser.phone);
+            if (userIndex !== -1) {
+                users[userIndex] = currentUser;
+                localStorage.setItem('telechat-users', JSON.stringify(users));
+            }
+            
+            // Recarrega a lista de contatos
+            loadContacts();
+            
+            // Fecha o modal
+            addContactModal.style.display = 'none';
+            
+            // Limpa os campos
+            document.getElementById('contact-phone').value = '';
+            document.getElementById('contact-name').value = '';
+        });
+
+        // Adicionar botão para voltar à lista em dispositivos móveis
+        document.addEventListener('DOMContentLoaded', () => {
+            const backButton = document.createElement('button');
+            backButton.textContent = '← Voltar';
+            backButton.style.cssText = 'background: none; border: none; color: #128C7E; cursor: pointer; font-weight: bold;';
+            backButton.addEventListener('click', () => {
+                sidebar.style.display = 'flex';
+                chatArea.style.display = 'none';
+            });
+            
+            document.querySelector('.chat-header').prepend(backButton);
+            
+            // Verificar localStorage ao carregar a página
+            checkLocalStorage();
+        });
+    </script>
+</body>
+</html>
