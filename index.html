@@ -509,22 +509,33 @@
             database.ref('users/' + sanitizedPhone).once('value')
                 .then((snapshot) => {
                     if (snapshot.exists()) {
-                        // Login
+                        // Login: Carrega os dados do usuário existente
                         currentUser = snapshot.val();
+                        alert('Login realizado com sucesso!');
                     } else {
-                        // Cadastro
+                        // Cadastro: Cria um novo usuário
                         currentUser = {
-                            phone,
-                            name,
+                            phone: phone,
+                            name: name,
                             contacts: []
                         };
+                        
                         // Salva o novo usuário no Firebase
-                        database.ref('users/' + sanitizedPhone).set(currentUser);
+                        database.ref('users/' + sanitizedPhone).set(currentUser)
+                            .then(() => {
+                                alert('Conta criada com sucesso!');
+                            })
+                            .catch((error) => {
+                                console.error("Erro ao criar conta:", error);
+                                alert("Erro ao criar conta. Tente novamente.");
+                                return;
+                            });
                     }
                     
-                    // Salva apenas a referência do telefone no localStorage
+                    // Salva o número de telefone no localStorage para persistência
                     localStorage.setItem('telechat-user-phone', phone);
                     
+                    // Entra no app
                     loginToApp();
                 })
                 .catch((error) => {
