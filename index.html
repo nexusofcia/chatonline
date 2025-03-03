@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TeleChat - Aplicativo de Chat</title>
+    <!-- Firebase SDK -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.1/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.1/firebase-database-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.1/firebase-auth-compat.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -174,6 +178,40 @@
             border-radius: 50%;
             margin-right: 15px;
             background-color: #ddd;
+        }
+        
+        .no-contacts {
+            text-align: center;
+            color: #777;
+            padding: 30px 15px;
+            font-style: italic;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .loading-spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #128C7E;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .contact-info h3 {
@@ -392,8 +430,24 @@
             <button class="btn" id="save-contact">Salvar contato</button>
         </div>
     </div>
+    
+    <!-- Loading spinner -->
+    <div class="loading" id="loading-spinner" style="display: none;">
+        <div class="loading-spinner"></div>
+    </div>
 
     <script>
+        // Configuração do Firebase
+        const firebaseConfig = {
+            databaseURL: "https://chatonline-e5710-default-rtdb.firebaseio.com/"
+        };
+
+        // Inicializa o Firebase
+        firebase.initializeApp(firebaseConfig);
+        
+        // Referência ao banco de dados
+        const database = firebase.database();
+        
         // Dados do usuário atual
         let currentUser = {
             phone: '',
@@ -401,9 +455,8 @@
             contacts: []
         };
 
-        // Contatos (simulação de banco de dados)
-        let users = [];
-
+        let currentChatUser = null;
+        
         // Referências aos elementos do DOM
         const loginScreen = document.getElementById('login-screen');
         const sidebar = document.getElementById('sidebar');
@@ -420,18 +473,22 @@
         const closeModal = document.getElementById('close-modal');
         const saveContactBtn = document.getElementById('save-contact');
 
-        // Verifica se há dados salvos no localStorage
+        // Verifica se há dados salvos no localStorage e Firebase
         function checkLocalStorage() {
-            const savedUsers = localStorage.getItem('telechat-users');
-            const currentUserData = localStorage.getItem('telechat-current-user');
+            const currentUserPhone = localStorage.getItem('telechat-user-phone');
             
-            if (savedUsers) {
-                users = JSON.parse(savedUsers);
-            }
-            
-            if (currentUserData) {
-                currentUser = JSON.parse(currentUserData);
-                loginToApp();
+            if (currentUserPhone) {
+                // Busca os dados do usuário no Firebase
+                database.ref('users/' + currentUserPhone.replace(/[.#$\/\[\]]/g, '_')).once('value')
+                    .then((snapshot) => {
+                        if (snapshot.exists()) {
+                            currentUser = snapshot.val();
+                            loginToApp();
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Erro ao buscar dados do usuário:", error);
+                    });
             }
         }
 
@@ -445,27 +502,35 @@
                 return;
             }
             
-            // Verifica se o usuário já existe
-            const existingUser = users.find(user => user.phone === phone);
+            // Sanitiza o número de telefone para usar como chave no Firebase
+            const sanitizedPhone = phone.replace(/[.#$\/\[\]]/g, '_');
             
-            if (existingUser) {
-                // Login
-                currentUser = existingUser;
-            } else {
-                // Cadastro
-                currentUser = {
-                    phone,
-                    name,
-                    contacts: []
-                };
-                users.push(currentUser);
-            }
-            
-            // Salva no localStorage
-            localStorage.setItem('telechat-users', JSON.stringify(users));
-            localStorage.setItem('telechat-current-user', JSON.stringify(currentUser));
-            
-            loginToApp();
+            // Verifica se o usuário já existe no Firebase
+            database.ref('users/' + sanitizedPhone).once('value')
+                .then((snapshot) => {
+                    if (snapshot.exists()) {
+                        // Login
+                        currentUser = snapshot.val();
+                    } else {
+                        // Cadastro
+                        currentUser = {
+                            phone,
+                            name,
+                            contacts: []
+                        };
+                        // Salva o novo usuário no Firebase
+                        database.ref('users/' + sanitizedPhone).set(currentUser);
+                    }
+                    
+                    // Salva apenas a referência do telefone no localStorage
+                    localStorage.setItem('telechat-user-phone', phone);
+                    
+                    loginToApp();
+                })
+                .catch((error) => {
+                    console.error("Erro ao verificar usuário:", error);
+                    alert("Erro ao fazer login. Tente novamente.");
+                });
         });
 
         // Função para entrar no app
@@ -482,7 +547,18 @@
         function loadContacts() {
             contactsList.innerHTML = '';
             
-            currentUser.contacts.forEach(contact => {
+            // Se não houver contatos, mostra uma mensagem
+            if (!currentUser.contacts || currentUser.contacts.length === 0) {
+                contactsList.innerHTML = '<div class="no-contacts">Você não tem contatos.<br>Adicione um contato para começar.</div>';
+                return;
+            }
+            
+            // Convertendo objeto de contatos para array, se necessário
+            const contactsArray = Array.isArray(currentUser.contacts) 
+                ? currentUser.contacts 
+                : Object.values(currentUser.contacts);
+            
+            contactsArray.forEach(contact => {
                 const contactElement = document.createElement('div');
                 contactElement.className = 'contact';
                 contactElement.innerHTML = `
@@ -507,19 +583,19 @@
             chatContactName.textContent = contact.name;
             chatMessages.innerHTML = '';
             
-            // Simula algumas mensagens (em uma aplicação real, seriam carregadas de um banco de dados)
-            const messages = [
-                { sender: 'them', text: 'Olá, tudo bem?', time: '10:30' },
-                { sender: 'me', text: 'Tudo ótimo! E com você?', time: '10:32' },
-                { sender: 'them', text: 'Também estou bem! Vamos marcar algo para este fim de semana?', time: '10:35' }
-            ];
-            
-            messages.forEach(message => {
-                addMessageToChat(message);
-            });
-            
             // Salva o contato atual para saber para quem enviar a mensagem
             chatArea.dataset.contactPhone = contact.phone;
+            currentChatUser = contact;
+            
+            // Cria um ID para a conversa (combinação dos dois números de telefone ordenados)
+            const phones = [currentUser.phone, contact.phone].sort();
+            const chatId = phones.join('_').replace(/[.#$\/\[\]]/g, '_');
+            
+            // Carrega as mensagens do Firebase
+            database.ref('chats/' + chatId).on('child_added', (snapshot) => {
+                const message = snapshot.val();
+                addMessageToChat(message);
+            });
             
             // Em telas pequenas, esconde a sidebar
             if (window.innerWidth <= 768) {
@@ -529,8 +605,11 @@
 
         // Adiciona uma mensagem ao chat
         function addMessageToChat(message) {
+            // Determina se a mensagem é enviada ou recebida
+            const isMyMessage = message.senderPhone === currentUser.phone;
+            
             const messageElement = document.createElement('div');
-            messageElement.className = `message ${message.sender === 'me' ? 'message-sent' : 'message-received'}`;
+            messageElement.className = `message ${isMyMessage ? 'message-sent' : 'message-received'}`;
             messageElement.innerHTML = `
                 <p>${message.text}</p>
                 <div class="message-time">${message.time}</div>
@@ -555,25 +634,35 @@
             
             if (!text) return;
             
+            const contactPhone = chatArea.dataset.contactPhone;
+            if (!contactPhone || !currentChatUser) return;
+            
             const now = new Date();
             const time = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
             
-            addMessageToChat({
+            // Cria um ID para a conversa (combinação dos dois números de telefone ordenados)
+            const phones = [currentUser.phone, contactPhone].sort();
+            const chatId = phones.join('_').replace(/[.#$\/\[\]]/g, '_');
+            
+            // Cria a mensagem
+            const message = {
                 sender: 'me',
+                senderPhone: currentUser.phone,
+                receiverPhone: contactPhone,
                 text,
-                time
-            });
+                time,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
             
-            messageInput.value = '';
-            
-            // Simula uma resposta após 1 segundo (em uma aplicação real, seria enviada a um servidor)
-            setTimeout(() => {
-                addMessageToChat({
-                    sender: 'them',
-                    text: 'Recebi sua mensagem!',
-                    time: `${now.getHours()}:${(now.getMinutes() + 1).toString().padStart(2, '0')}`
+            // Salva a mensagem no Firebase
+            database.ref('chats/' + chatId).push(message)
+                .then(() => {
+                    messageInput.value = '';
+                })
+                .catch((error) => {
+                    console.error("Erro ao enviar mensagem:", error);
+                    alert("Erro ao enviar mensagem. Tente novamente.");
                 });
-            }, 1000);
         }
 
         // Modal para adicionar contato
@@ -602,44 +691,89 @@
             }
             
             // Verifica se o contato já existe
-            const existingContact = currentUser.contacts.find(contact => contact.phone === contactPhone);
+            const contactsArray = currentUser.contacts ? 
+                (Array.isArray(currentUser.contacts) ? currentUser.contacts : Object.values(currentUser.contacts)) 
+                : [];
+                
+            const existingContact = contactsArray.find(contact => contact.phone === contactPhone);
             
             if (existingContact) {
                 alert('Este contato já existe na sua lista!');
                 return;
             }
             
-            // Adiciona o novo contato
-            const newContact = {
-                phone: contactPhone,
-                name: contactName
-            };
+            // Verifica se o usuário existe no Firebase
+            const sanitizedPhone = contactPhone.replace(/[.#$\/\[\]]/g, '_');
             
-            currentUser.contacts.push(newContact);
-            
-            // Atualiza os dados no localStorage
-            localStorage.setItem('telechat-current-user', JSON.stringify(currentUser));
-            
-            // Atualiza também no array de usuários
-            const userIndex = users.findIndex(user => user.phone === currentUser.phone);
-            if (userIndex !== -1) {
-                users[userIndex] = currentUser;
-                localStorage.setItem('telechat-users', JSON.stringify(users));
-            }
-            
-            // Recarrega a lista de contatos
-            loadContacts();
-            
-            // Fecha o modal
-            addContactModal.style.display = 'none';
-            
-            // Limpa os campos
-            document.getElementById('contact-phone').value = '';
-            document.getElementById('contact-name').value = '';
+            database.ref('users/' + sanitizedPhone).once('value')
+                .then((snapshot) => {
+                    // Cria o novo contato
+                    const newContact = {
+                        phone: contactPhone,
+                        name: contactName
+                    };
+                    
+                    // Se o usuário não existir no banco, cria uma entrada básica
+                    if (!snapshot.exists()) {
+                        // Avisa que estamos criando um usuário que ainda não se cadastrou
+                        alert('Este número ainda não está cadastrado no TeleChat, mas você poderá enviar mensagens quando a pessoa se cadastrar.');
+                    }
+                    
+                    // Inicializa o array de contatos se não existir
+                    if (!currentUser.contacts) {
+                        currentUser.contacts = [];
+                    }
+                    
+                    // Adiciona o contato ao usuário atual
+                    if (Array.isArray(currentUser.contacts)) {
+                        currentUser.contacts.push(newContact);
+                    } else {
+                        // Se for um objeto, adiciona com um ID único
+                        const newContactId = Date.now().toString();
+                        currentUser.contacts[newContactId] = newContact;
+                    }
+                    
+                    // Atualiza o usuário no Firebase
+                    const userPhone = currentUser.phone.replace(/[.#$\/\[\]]/g, '_');
+                    database.ref('users/' + userPhone).update({
+                        contacts: currentUser.contacts
+                    })
+                    .then(() => {
+                        // Recarrega a lista de contatos
+                        loadContacts();
+                        
+                        // Fecha o modal
+                        addContactModal.style.display = 'none';
+                        
+                        // Limpa os campos
+                        document.getElementById('contact-phone').value = '';
+                        document.getElementById('contact-name').value = '';
+                    })
+                    .catch((error) => {
+                        console.error("Erro ao salvar contato:", error);
+                        alert("Erro ao adicionar contato. Tente novamente.");
+                    });
+                })
+                .catch((error) => {
+                    console.error("Erro ao verificar contato:", error);
+                    alert("Erro ao verificar contato. Tente novamente.");
+                });
         });
 
         // Adicionar botão para voltar à lista em dispositivos móveis
+        // Função para mostrar/ocultar o spinner de carregamento
+        function toggleLoading(show) {
+            document.getElementById('loading-spinner').style.display = show ? 'flex' : 'none';
+        }
+
+        // Função para fazer logout
+        function logout() {
+            localStorage.removeItem('telechat-user-phone');
+            location.reload();
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
+            // Adiciona botão de voltar
             const backButton = document.createElement('button');
             backButton.textContent = '← Voltar';
             backButton.style.cssText = 'background: none; border: none; color: #128C7E; cursor: pointer; font-weight: bold;';
@@ -650,8 +784,18 @@
             
             document.querySelector('.chat-header').prepend(backButton);
             
+            // Adiciona botão de logout
+            const logoutButton = document.createElement('button');
+            logoutButton.textContent = 'Sair';
+            logoutButton.style.cssText = 'background: none; border: none; color: white; cursor: pointer; font-weight: bold; padding: 5px 10px;';
+            logoutButton.addEventListener('click', logout);
+            
+            document.querySelector('.sidebar-header').appendChild(logoutButton);
+            
             // Verificar localStorage ao carregar a página
+            toggleLoading(true);
             checkLocalStorage();
+            setTimeout(() => toggleLoading(false), 1500);
         });
     </script>
 </body>
